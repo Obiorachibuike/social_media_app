@@ -33,7 +33,7 @@ const SigninForm = () => {
     const session = await signInAccount(user);
 
     if (!session) {
-      toast({ title: "Login failed. Please try again." });
+      toast({ title: "Login failed. Please try again.", variant: "destructive" });
       
       return;
     }
@@ -43,9 +43,10 @@ const SigninForm = () => {
     if (isLoggedIn) {
       form.reset();
 
+      toast({ title: "Welcome back!" });
       navigate("/");
     } else {
-      toast({ title: "Login failed. Please try again.", });
+      toast({ title: "Login failed. Please try again.", variant: "destructive" });
       
       return;
     }

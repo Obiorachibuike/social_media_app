@@ -32,7 +32,7 @@ export async function createUserAccount(user: INewUser) {
     return newUser;
   } catch (error) {
     console.log(error);
-    return error;
+    return null;
   }
 }
 
@@ -107,28 +107,25 @@ export async function getMessages(userId: string, contactId: string) {
   try {
     if (!appwriteConfig.messageCollectionId) throw Error("Message collection ID missing");
 
-    // In a production environment with proper Appwrite backend support,
-    // we would use Query.or() and Query.and().
-    // Given the SDK constraints, we query for messages where the current user is either sender or receiver.
-    // This reduces the data transfer significantly compared to fetching all messages.
+    // Optimization: Query for messages where both sender and receiver are either the current user or the contact.
+    // This significantly reduces data transfer while working around the lack of logical OR/AND in the current SDK version.
     const messages = await databases.listDocuments(
       appwriteConfig.databaseId,
       appwriteConfig.messageCollectionId,
       [
+        Query.equal("sender", [userId, contactId]),
+        Query.equal("receiver", [userId, contactId]),
         Query.orderAsc("createdAt"),
-        Query.limit(100), // Reasonable limit for a chat thread
+        Query.limit(100),
       ]
     );
 
-    // Manual filtering for the specific conversation
+    // Manual filtering to ensure we don't include messages sent to/from the same person (if that ever happens)
     const filteredMessages = messages.documents.filter((msg: any) => {
       const msgSenderId = typeof msg.sender === 'string' ? msg.sender : msg.sender.$id;
       const msgReceiverId = typeof msg.receiver === 'string' ? msg.receiver : msg.receiver.$id;
 
-      return (
-        (msgSenderId === userId && msgReceiverId === contactId) ||
-        (msgSenderId === contactId && msgReceiverId === userId)
-      );
+      return msgSenderId !== msgReceiverId;
     });
 
     return { ...messages, documents: filteredMessages, total: filteredMessages.length };

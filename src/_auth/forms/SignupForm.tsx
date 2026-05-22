@@ -38,7 +38,7 @@ const SignupForm = () => {
       const newUser = await createUserAccount(user);
 
       if (!newUser) {
-        toast({ title: "Sign up failed. Please try again.", });
+        toast({ title: "Sign up failed. Please try again.", variant: "destructive" });
         
         return;
       }
@@ -49,7 +49,7 @@ const SignupForm = () => {
       });
 
       if (!session) {
-        toast({ title: "Something went wrong. Please login your new account", });
+        toast({ title: "Something went wrong. Please login your new account", variant: "destructive" });
         
         navigate("/sign-in");
         
@@ -61,9 +61,10 @@ const SignupForm = () => {
       if (isLoggedIn) {
         form.reset();
 
+        toast({ title: "Successfully signed up!" });
         navigate("/");
       } else {
-        toast({ title: "Login failed. Please try again.", });
+        toast({ title: "Login failed. Please try again.", variant: "destructive" });
         
         return;
       }
