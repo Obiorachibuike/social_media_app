@@ -58,6 +58,201 @@ export async function saveUserToDB(user: {
   }
 }
 
+export async function deleteComment(commentId: string) {
+  try {
+    if (!appwriteConfig.commentCollectionId) throw Error("Comment collection ID missing");
+
+    const statusCode = await databases.deleteDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.commentCollectionId,
+      commentId
+    );
+
+    if (!statusCode) throw Error;
+
+    return { status: "Ok" };
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+// ============================== CHAT API
+export async function createMessage(message: {
+  senderId: string;
+  receiverId: string;
+  text: string;
+}) {
+  try {
+    if (!appwriteConfig.messageCollectionId) throw Error("Message collection ID missing");
+
+    const newMessage = await databases.createDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.messageCollectionId,
+      ID.unique(),
+      {
+        sender: message.senderId,
+        receiver: message.receiverId,
+        text: message.text,
+        createdAt: new Date(),
+      }
+    );
+
+    return newMessage;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function getMessages(userId: string, contactId: string) {
+  try {
+    if (!appwriteConfig.messageCollectionId) throw Error("Message collection ID missing");
+
+    // In a production environment with proper Appwrite backend support,
+    // we would use Query.or() and Query.and().
+    // Given the SDK constraints, we query for messages where the current user is either sender or receiver.
+    // This reduces the data transfer significantly compared to fetching all messages.
+    const messages = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.messageCollectionId,
+      [
+        Query.orderAsc("createdAt"),
+        Query.limit(100), // Reasonable limit for a chat thread
+      ]
+    );
+
+    // Manual filtering for the specific conversation
+    const filteredMessages = messages.documents.filter((msg: any) => {
+      const msgSenderId = typeof msg.sender === 'string' ? msg.sender : msg.sender.$id;
+      const msgReceiverId = typeof msg.receiver === 'string' ? msg.receiver : msg.receiver.$id;
+
+      return (
+        (msgSenderId === userId && msgReceiverId === contactId) ||
+        (msgSenderId === contactId && msgReceiverId === userId)
+      );
+    });
+
+    return { ...messages, documents: filteredMessages, total: filteredMessages.length };
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+// ============================== COMMENTS API
+export async function createComment(comment: {
+  userId: string;
+  postId: string;
+  text: string;
+}) {
+  try {
+    if (!appwriteConfig.commentCollectionId) throw Error("Comment collection ID missing");
+
+    const newComment = await databases.createDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.commentCollectionId,
+      ID.unique(),
+      {
+        user: comment.userId,
+        post: comment.postId,
+        text: comment.text,
+        createdAt: new Date(),
+      }
+    );
+
+    return newComment;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function getComments(postId: string) {
+  try {
+    if (!appwriteConfig.commentCollectionId) throw Error("Comment collection ID missing");
+
+    const comments = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.commentCollectionId,
+      [Query.equal("post", postId), Query.orderDesc("createdAt")]
+    );
+
+    return comments;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+// ============================== FOLLOW / UNFOLLOW USER
+export async function followUser(userId: string, followerId: string) {
+  try {
+    const user = await getUserById(userId);
+    const follower = await getUserById(followerId);
+
+    if (!user || !follower) throw Error;
+
+    const userFollowers = user.followers?.map((f: any) => typeof f === 'string' ? f : f.$id) || [];
+    const followerFollowing = follower.following?.map((f: any) => typeof f === 'string' ? f : f.$id) || [];
+
+    const updatedUser = await databases.updateDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.userCollectionId,
+      userId,
+      {
+        followers: [...userFollowers, followerId],
+      }
+    );
+
+    const updatedFollower = await databases.updateDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.userCollectionId,
+      followerId,
+      {
+        following: [...followerFollowing, userId],
+      }
+    );
+
+    if (!updatedUser || !updatedFollower) throw Error;
+
+    return { status: "Ok" };
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function unfollowUser(userId: string, followerId: string) {
+  try {
+    const user = await getUserById(userId);
+    const follower = await getUserById(followerId);
+
+    if (!user || !follower) throw Error;
+
+    const userFollowers = user.followers?.map((f: any) => typeof f === 'string' ? f : f.$id) || [];
+    const followerFollowing = follower.following?.map((f: any) => typeof f === 'string' ? f : f.$id) || [];
+
+    const updatedUser = await databases.updateDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.userCollectionId,
+      userId,
+      {
+        followers: userFollowers.filter((id: string) => id !== followerId),
+      }
+    );
+
+    const updatedFollower = await databases.updateDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.userCollectionId,
+      followerId,
+      {
+        following: followerFollowing.filter((id: string) => id !== userId),
+      }
+    );
+
+    if (!updatedUser || !updatedFollower) throw Error;
+
+    return { status: "Ok" };
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 // ============================== SIGN IN
 export async function signInAccount(user: { email: string; password: string }) {
   try {
