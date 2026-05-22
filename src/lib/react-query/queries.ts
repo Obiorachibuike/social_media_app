@@ -25,6 +25,13 @@ import {
   searchPosts,
   savePost,
   deleteSavedPost,
+  followUser,
+  unfollowUser,
+  getMessages,
+  createMessage,
+  getComments,
+  createComment,
+  deleteComment,
 } from "@/lib/appwrite/api";
 import { INewPost, INewUser, IUpdatePost, IUpdateUser } from "@/types";
 
@@ -68,6 +75,103 @@ export const useGetPosts = () => {
       // Use the $id of the last document as the cursor.
       const lastId = lastPage.documents[lastPage.documents.length - 1].$id;
       return lastId;
+    },
+  });
+};
+
+// ============================================================
+// CHAT QUERIES
+// ============================================================
+
+export const useGetMessages = (userId: string, contactId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_MESSAGES, ...[userId, contactId].sort()],
+    queryFn: () => getMessages(userId, contactId),
+    enabled: !!userId && !!contactId,
+  });
+};
+
+export const useCreateMessage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (message: { senderId: string; receiverId: string; text: string }) =>
+      createMessage(message),
+    onSuccess: (data) => {
+      const senderId = typeof data?.sender === 'string' ? data?.sender : data?.sender.$id;
+      const receiverId = typeof data?.receiver === 'string' ? data?.receiver : data?.receiver.$id;
+
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_MESSAGES, ...[senderId, receiverId].sort()],
+      });
+    },
+  });
+};
+
+// ============================================================
+// COMMENT QUERIES
+// ============================================================
+
+export const useGetComments = (postId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_COMMENTS, postId],
+    queryFn: () => getComments(postId),
+    enabled: !!postId,
+  });
+};
+
+export const useCreateComment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (comment: { userId: string; postId: string; text: string }) =>
+      createComment(comment),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_COMMENTS, data?.post.$id],
+      });
+    },
+  });
+};
+
+export const useDeleteComment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (commentId: string) => deleteComment(commentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_COMMENTS],
+      });
+    },
+  });
+};
+
+export const useFollowUser = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, followerId }: { userId: string; followerId: string }) =>
+      followUser(userId, followerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USERS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_CURRENT_USER],
+      });
+    },
+  });
+};
+
+export const useUnfollowUser = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, followerId }: { userId: string; followerId: string }) =>
+      unfollowUser(userId, followerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USERS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_CURRENT_USER],
+      });
     },
   });
 };

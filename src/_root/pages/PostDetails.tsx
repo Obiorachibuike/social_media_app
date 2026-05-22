@@ -2,7 +2,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui";
 import { Loader } from "@/components/shared";
-import { GridPostList, PostStats } from "@/components/shared";
+import { GridPostList, PostStats, Comments } from "@/components/shared";
 
 import {
   useGetPostById,
@@ -134,6 +134,8 @@ const PostDetails = () => {
             <div className="w-full">
               <PostStats post={post} userId={user.id} />
             </div>
+
+            <Comments postId={id || ""} />
           </div>
         </div>
       )}
