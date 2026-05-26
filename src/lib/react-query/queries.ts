@@ -21,6 +21,8 @@ import {
   getUserById,
   updateUser,
   getRecentPosts,
+  getFollowingPosts,
+  getTrendingTags,
   getInfinitePosts,
   searchPosts,
   savePost,
@@ -188,6 +190,21 @@ export const useGetRecentPosts = () => {
   return useQuery({
     queryKey: [QUERY_KEYS.GET_RECENT_POSTS],
     queryFn: getRecentPosts,
+  });
+};
+
+export const useGetFollowingPosts = (followingIds: string[]) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_FOLLOWING_POSTS, followingIds],
+    queryFn: () => getFollowingPosts(followingIds),
+    enabled: !!followingIds,
+  });
+};
+
+export const useGetTrendingTags = () => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_TRENDING_TAGS],
+    queryFn: getTrendingTags,
   });
 };
 

@@ -58,6 +58,59 @@ export async function saveUserToDB(user: {
   }
 }
 
+export async function getTrendingTags() {
+  try {
+    const posts = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.postCollectionId,
+      [Query.orderDesc("$createdAt"), Query.limit(100)]
+    );
+
+    if (!posts) throw Error;
+
+    const tagCounts: { [key: string]: number } = {};
+
+    posts.documents.forEach((post) => {
+      post.tags?.forEach((tag: string) => {
+        if (tag) {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        }
+      });
+    });
+
+    const trendingTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+    return trendingTags;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function getFollowingPosts(followingIds: string[]) {
+  try {
+    if (followingIds.length === 0) return { documents: [], total: 0 };
+
+    const posts = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.postCollectionId,
+      [
+        Query.equal("creator", followingIds),
+        Query.orderDesc("$createdAt"),
+        Query.limit(20),
+      ]
+    );
+
+    if (!posts) throw Error;
+
+    return posts;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 export async function deleteComment(commentId: string) {
   try {
     if (!appwriteConfig.commentCollectionId) throw Error("Comment collection ID missing");
